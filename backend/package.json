@@ -1,0 +1,28 @@
+{
+  "name": "muxic-backend",
+  "version": "1.0.0",
+  "description": "It is a real-time multi-device music synchronization server for Muxic",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --env-file=.env app.js"
+  },
+  "keywords": [
+    "music",
+    "sync",
+    "beatsync"
+  ],
+  "author": "Keshav Kumar <keshav0kumar@hotmail.com>",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.9.0",
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.15.1",
+    "nodemailer": "^7.0.3",
+    "ws": "^8.18.2"
+  }
+}
