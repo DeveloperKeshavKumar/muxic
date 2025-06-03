@@ -445,10 +445,118 @@ const resetPasswordController = async (req, res, next) => {
     }
 }
 
+const googleCallbackController = async (req, res) => {
+    const { code } = req.query
+
+    try {
+        // Exchange authorization code for access token
+        const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
+            client_id: process.env.GOOGLE_CLIENT_ID,
+            client_secret: process.env.GOOGLE_CLIENT_SECRET,
+            code,
+            redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+            grant_type: 'authorization_code',
+        })
+
+        const { access_token } = tokenResponse.data
+
+        // Get user profile using the access token
+        const profileResponse = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo', {
+            headers: { Authorization: `Bearer ${access_token}` },
+        })
+
+        const googleUser = profileResponse.data
+
+        if (!googleUser || !googleUser.id) {
+            return res.status(400).json({
+                success: false,
+                message: 'Google authentication failed',
+            })
+        }
+
+        let user = await User.findOne({ googleId: googleUser.id })
+
+        if (user) {
+            user.lastLogin = new Date()
+            await user.save()
+        } else {
+            const existingUser = await User.findOne({ email: googleUser.email })
+
+            if (existingUser) {
+                existingUser.googleId = googleUser.id
+                existingUser.isVerified = true
+                existingUser.lastLogin = new Date()
+                if (!existingUser.avatar && googleUser.picture) {
+                    existingUser.avatar = googleUser.picture
+                }
+                user = await existingUser.save()
+            } else {
+                user = new User({
+                    email: googleUser.email,
+                    username: await generateUniqueUsername(googleUser.name || googleUser.email),
+                    fullName: googleUser.name || googleUser.email.split('@')[0],
+                    avatar: googleUser.picture,
+                    googleId: googleUser.id,
+                    isVerified: true,
+                    lastLogin: new Date(),
+                })
+
+                await user.save()
+
+                await UserStats.initializeUserStats(user._id)
+                await sendEmail(user.email, 'welcome', user.username)
+            }
+        }
+
+        // Generate tokens
+        const token = generateToken(user._id)
+        const refreshToken = generateRefreshToken(user._id)
+
+        // Set token cookies
+        setTokenCookies(res, token, refreshToken)
+
+        const redirectUrl = `${process.env.CLIENT_URL}/auth/success?token=${token}`
+        res.redirect(redirectUrl)
+
+    } catch (error) {
+        console.error('Google callback error:', error.response?.data || error.message)
+        const errorUrl = `${process.env.CLIENT_URL}/auth/error?message=Authentication failed`
+        res.redirect(errorUrl)
+    }
+}
+
+const generateUniqueUsername = async (baseName) => {
+    let username = baseName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .substring(0, 10)
+
+    if (username.length < 5) {
+        username = username + Math.floor(Math.random() * 10000)
+    }
+
+    let isUnique = false
+    let counter = 1
+    let finalUsername = username
+
+    while (!isUnique) {
+        const existing = await User.findOne({ username: finalUsername })
+        if (!existing) {
+            isUnique = true
+        } else {
+            finalUsername = `${username}${counter}`
+            counter++
+        }
+    }
+
+    return finalUsername
+}
+
 export {
     registerController,
     loginController,
     verifyOTPController,
+    googleCallbackController,
     forgotPasswordController,
     resetPasswordController
 }
