@@ -338,8 +338,117 @@ const loginController = async (req, res, next) => {
     }
 }
 
+const forgotPasswordController = async (req, res, next) => {
+    try {
+        const { email } = req.body
+
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required'
+            })
+        }
+
+        const user = await User.findOne({ email: email.toLowerCase() })
+
+        if (!user) {
+            // Don't reveal if email exists or not
+            return res.status(200).json({
+                success: true,
+                message: 'If the email exists, a password reset link has been sent.'
+            })
+        }
+
+        // Generate reset token
+        const resetToken = crypto.randomBytes(32).toString('hex')
+        const resetExpires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+
+        user.resetPasswordToken = resetToken
+        user.resetPasswordExpires = resetExpires
+        await user.save()
+
+        // Send reset email
+        setImmediate(async () => {
+            try {
+                const emailResult = await sendEmail(user.email, 'resetPassword', resetToken, user.username)
+                if (!emailResult.success) {
+                    console.error('Failed to send reset email:', emailResult.error)
+                }
+            } catch (err) {
+                console.error('Async reset password email error:', err)
+            }
+        })
+
+        res.status(200).json({
+            success: true,
+            message: 'If the email exists, a password reset link has been sent.'
+        })
+
+    } catch (error) {
+        console.error('Forgot password error:', error)
+        res.status(500).json({
+            success: false,
+            message: 'Failed to process request. Please try again.'
+        })
+    }
+}
+
+const resetPasswordController = async (req, res, next) => {
+    try {
+        const { token } = req.query
+        const { password } = req.body
+
+        if (!token || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Token and new password are required'
+            })
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 8 characters long'
+            })
+        }
+
+        // Find user by reset token
+        const user = await User.findOne({
+            resetPasswordToken: token,
+            resetPasswordExpires: { $gt: Date.now() }
+        }).select('+resetPasswordToken +resetPasswordExpires')
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired reset token'
+            })
+        }
+
+        // Reset password
+        user.password = password
+        user.resetPasswordToken = undefined
+        user.resetPasswordExpires = undefined
+        await user.save()
+
+        res.status(200).json({
+            success: true,
+            message: 'Password reset successful. You can now login with your new password.'
+        })
+
+    } catch (error) {
+        console.error('Reset password error:', error)
+        res.status(500).json({
+            success: false,
+            message: 'Password reset failed. Please try again.'
+        })
+    }
+}
+
 export {
     registerController,
     loginController,
-    verifyOTPController
+    verifyOTPController,
+    forgotPasswordController,
+    resetPasswordController
 }
