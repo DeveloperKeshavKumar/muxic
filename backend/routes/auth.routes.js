@@ -15,6 +15,7 @@ import {
 import { validate } from '../middlewares/validate.js'
 import { loginLimiter, otpLimiter, resetPasswordLimiter } from "../middlewares/rateLimit.js"
 import { authMiddleware } from "../middlewares/auth.middleware.js"
+import { forgotPasswordSchema, googleCallbackQuerySchema, loginSchema, registerSchema, resetPasswordSchema, verifyOTPSchema } from "../validations/auth.schema.js"
 
 const authRouter = Router()
 
