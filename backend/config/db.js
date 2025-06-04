@@ -1,10 +1,15 @@
 import mongoose from "mongoose"
 
-export const databaseConnector = () => {
-    mongoose.connect(process.env.MONGO_URI)
-        .then(() => console.log('Muxic Server connected to DB Successfully'))
-        .catch((err) => {
-            console.log('Error occurred while connecting to DB: \n', err)
-            process.exit(0)
+export const databaseConnector = async () => {
+    try {
+        await mongoose.connect(process.env.MONGO_URI, {
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
         })
+        console.log('Muxic Server connected to DB Successfully')
+        return mongoose.connection
+    } catch (err) {
+        console.error('Error occurred while connecting to DB:', err)
+        process.exit(1)
+    }
 }
