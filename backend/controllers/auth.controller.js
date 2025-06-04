@@ -4,6 +4,10 @@ import axios from 'axios'
 import { User, UserStats } from '../models/index.js'
 import { sendEmail } from '../config/index.js'
 
+const CLIENT_ID = process.env.GOOGLE_CLIENT_ID
+const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
+const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI
+
 const generateToken = (userId) => {
     return jwt.sign({ userId }, process.env.JWT_SECRET, {
         expiresIn: process.env.JWT_EXPIRE || '7d'
@@ -33,15 +37,7 @@ const setTokenCookies = (res, token, refreshToken) => {
 
 const registerController = async (req, res, next) => {
     try {
-        const { email, password, username, fullName } = req.body
-
-        // Validate required fields
-        if (!email || !password || !username || !fullName) {
-            return res.status(400).json({
-                success: false,
-                message: 'All fields are required'
-            })
-        }
+        const { email, password, username, fullName } = req.validate
 
         // Check if user already exists
         const existingUser = await User.findOne({
@@ -127,15 +123,7 @@ const registerController = async (req, res, next) => {
 
 const verifyOTPController = async (req, res, next) => {
     try {
-        const { userId, otp } = req.body
-
-        // Validate required fields
-        if (!userId || !otp) {
-            return res.status(400).json({
-                success: false,
-                message: 'User ID and OTP are required'
-            })
-        }
+        const { userId, otp } = req.validate
 
         // Find user with OTP
         const user = await User.findById(userId).select('+otp.code +otp.expiresAt')
@@ -223,15 +211,7 @@ const verifyOTPController = async (req, res, next) => {
 
 const loginController = async (req, res, next) => {
     try {
-        const { identifier, password } = req.body
-
-        // Validate required fields
-        if (!identifier || !password) {
-            return res.status(400).json({
-                success: false,
-                message: 'Email/username and password are required'
-            })
-        }
+        const { identifier, password } = req.validate
 
         // Find user by email or username
         const user = await User.findByCredentials(identifier)
@@ -340,14 +320,7 @@ const loginController = async (req, res, next) => {
 
 const forgotPasswordController = async (req, res, next) => {
     try {
-        const { email } = req.body
-
-        if (!email) {
-            return res.status(400).json({
-                success: false,
-                message: 'Email is required'
-            })
-        }
+        const { email } = req.validate
 
         const user = await User.findOne({ email: email.toLowerCase() })
 
@@ -395,15 +368,7 @@ const forgotPasswordController = async (req, res, next) => {
 
 const resetPasswordController = async (req, res, next) => {
     try {
-        const { token } = req.query
-        const { password } = req.body
-
-        if (!token || !password) {
-            return res.status(400).json({
-                success: false,
-                message: 'Token and new password are required'
-            })
-        }
+        const { token, password } = req.validate
 
         if (password.length < 8) {
             return res.status(400).json({
@@ -445,6 +410,23 @@ const resetPasswordController = async (req, res, next) => {
     }
 }
 
+const googleLoginController = (req, res) => {
+    if (!CLIENT_ID || !REDIRECT_URI) {
+        return res.status(500).json({ message: 'Google login is unavailable' })
+    }
+
+    const state = crypto.randomUUID()
+    res.cookie('oauth_state', state, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 5 * 60 * 1000,
+    })
+
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?state=${state}&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=profile email`
+    res.redirect(url)
+}
+
 const googleCallbackController = async (req, res) => {
     const { code, state } = req.query;
     const storedState = req.cookies.oauth_state;
@@ -459,10 +441,10 @@ const googleCallbackController = async (req, res) => {
     try {
         // Exchange authorization code for access token
         const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
-            client_id: process.env.GOOGLE_CLIENT_ID,
-            client_secret: process.env.GOOGLE_CLIENT_SECRET,
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
             code,
-            redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+            redirect_uri: REDIRECT_URI,
             grant_type: 'authorization_code',
         })
 
@@ -564,7 +546,8 @@ export {
     registerController,
     loginController,
     verifyOTPController,
-    googleCallbackController,
     forgotPasswordController,
-    resetPasswordController
+    resetPasswordController,
+    googleLoginController,
+    googleCallbackController
 }
