@@ -446,7 +446,15 @@ const resetPasswordController = async (req, res, next) => {
 }
 
 const googleCallbackController = async (req, res) => {
-    const { code } = req.query
+    const { code, state } = req.query;
+    const storedState = req.cookies.oauth_state;
+
+    if (!state || state !== storedState) {
+        console.warn('Invalid or missing OAuth state');
+        return res.redirect(`${process.env.CLIENT_URL}/auth/error?message=Invalid+OAuth+state`);
+    }
+
+    res.clearCookie('oauth_state');
 
     try {
         // Exchange authorization code for access token
