@@ -1,9 +1,12 @@
 import { Router } from "express"
 import {
+  deleteAccountController,
   forgotPasswordController,
   googleCallbackController,
   googleLoginController,
   loginController,
+  logoutController,
+  refreshTokenController,
   registerController,
   resetPasswordController,
   verifyOTPController
@@ -11,6 +14,7 @@ import {
 
 import { validate } from '../middlewares/validate.js'
 import { loginLimiter, otpLimiter, resetPasswordLimiter } from "../middlewares/rateLimit.js"
+import { authMiddleware } from "../middlewares/auth.middleware.js"
 
 const authRouter = Router()
 
@@ -20,6 +24,10 @@ authRouter.post('/verify', otpLimiter, validate(verifyOTPSchema), verifyOTPContr
 
 authRouter.put('/forgot-password', validate(forgotPasswordSchema), forgotPasswordController)
 authRouter.put('/reset-password', resetPasswordLimiter, validate(resetPasswordSchema), resetPasswordController)
+
+authRouter.post('/refresh', refreshTokenController)
+authRouter.post('/logout', authMiddleware, logoutController)
+authRouter.delete('/delete', authMiddleware, deleteAccountController)
 
 authRouter.get('/google', googleLoginController)
 authRouter.get('/google/callback', validate(googleCallbackQuerySchema, 'query'), googleCallbackController)

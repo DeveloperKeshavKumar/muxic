@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import axios from 'axios'
-import { User, UserStats } from '../models/index.js'
+import { RefreshToken, User, UserStats } from '../models/index.js'
 import { sendEmail } from '../config/index.js'
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID
@@ -14,11 +14,21 @@ const generateToken = (userId) => {
     })
 }
 
-const generateRefreshToken = (userId) => {
-    return jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET, {
-        expiresIn: '30d'
+const generateRefreshToken = async (userId) => {
+    const token = crypto.randomBytes(64).toString('hex')
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+
+    await RefreshToken.create({
+        userId,
+        token,
+        expiresAt,
+        createdAt: new Date(),
+        lastUsed: new Date()
     })
+
+    return token
 }
+
 
 const setTokenCookies = (res, token, refreshToken) => {
     const cookieOptions = {
@@ -410,6 +420,85 @@ const resetPasswordController = async (req, res, next) => {
     }
 }
 
+const refreshTokenController = async (req, res, next) => {
+    const incomingToken = req.cookies.refreshToken
+
+    if (!incomingToken) {
+        return res.status(401).json({ success: false, message: 'Refresh token missing' })
+    }
+
+    try {
+        const existing = await RefreshToken.findOne({ token: incomingToken })
+
+        if (!existing) {
+            return res.status(403).json({ success: false, message: 'Invalid or expired refresh token' })
+        }
+
+        const userId = existing.userId
+
+        await RefreshToken.deleteOne({ _id: existing._id }) // Rotate
+        const newRefreshToken = await generateRefreshToken(userId)
+        const newAccessToken = generateToken(userId)
+
+        setTokenCookies(res, newAccessToken, newRefreshToken)
+
+        res.status(200).json({
+            success: true,
+            token: newAccessToken,
+            refreshToken: newRefreshToken
+        })
+    } catch (err) {
+        console.error('Refresh error:', err)
+        res.status(500).json({ success: false, message: 'Token refresh failed' })
+    }
+}
+
+const logoutController = async (req, res) => {
+    const token = req.cookies.refreshToken
+
+    if (token) {
+        await RefreshToken.deleteOne({ token }).catch(console.error)
+    }
+
+    res.clearCookie('token')
+    res.clearCookie('refreshToken')
+
+    res.status(200).json({
+        success: true,
+        message: 'Logged out successfully'
+    })
+}
+
+const deleteAccountController = async (req, res) => {
+    const userId = req.userId
+
+    try {
+        await Device.deleteMany({ userId })
+
+        const roomsCreated = await Room.find({ createdBy: userId }).select('_id')
+        const roomIdsCreated = roomsCreated.map(room => room._id)
+
+        await Room.deleteMany({ createdBy: userId })
+        await SyncSession.deleteMany({ roomId: { $in: roomIdsCreated } })
+
+        await Room.updateMany(
+            { 'participants.user': userId },
+            { $pull: { participants: { user: userId } } }
+        )
+
+        // Optionally: Remove sync sessions for rooms where user was participant
+        // You might want to keep sync sessions if room is still active,
+        // or handle this differently depending on your app logic.
+
+        await User.findByIdAndDelete(userId)
+
+        res.status(200).json({ message: 'User account and related data deleted successfully.' })
+    } catch (error) {
+        console.error('Error deleting user data:', error)
+        res.status(500).json({ error: 'Failed to delete user account data.' })
+    }
+}
+
 const googleLoginController = (req, res) => {
     if (!CLIENT_ID || !REDIRECT_URI) {
         return res.status(500).json({ message: 'Google login is unavailable' })
@@ -550,6 +639,9 @@ export {
     verifyOTPController,
     forgotPasswordController,
     resetPasswordController,
+    refreshTokenController,
+    logoutController,
+    deleteAccountController,
     googleLoginController,
     googleCallbackController
 }
