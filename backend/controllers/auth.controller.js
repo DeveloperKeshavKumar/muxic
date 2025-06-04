@@ -518,29 +518,31 @@ const googleCallbackController = async (req, res) => {
 const generateUniqueUsername = async (baseName) => {
     let username = baseName
         .toLowerCase()
-        .replace(/[^a-z0-9]/g, '')
-        .substring(0, 10)
+        .replace(/[^a-z0-9_]/g, '')
+        .substring(0, 20);
 
-    if (username.length < 5) {
-        username = username + Math.floor(Math.random() * 10000)
+    while (username.length < 5) {
+        username += Math.floor(Math.random() * 10);
     }
 
-    let isUnique = false
-    let counter = 1
-    let finalUsername = username
+    let isUnique = false;
+    let counter = 1;
+    let finalUsername = username;
 
     while (!isUnique) {
-        const existing = await User.findOne({ username: finalUsername })
+        const existing = await User.findOne({ username: finalUsername });
         if (!existing) {
-            isUnique = true
+            isUnique = true;
         } else {
-            finalUsername = `${username}${counter}`
-            counter++
+            const suffix = String(counter);
+            const baseLength = 20 - suffix.length;
+            finalUsername = username.substring(0, baseLength) + suffix;
+            counter++;
         }
     }
 
-    return finalUsername
-}
+    return finalUsername;
+};
 
 export {
     registerController,
