@@ -8,10 +8,17 @@ const CLIENT_ID = process.env.GOOGLE_CLIENT_ID
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
 const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI
 
-const generateToken = (userId) => {
-    return jwt.sign({ userId }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRE || '7d'
-    })
+const generateToken = (userId, extraPayload = {}) => {
+    return jwt.sign(
+        {
+            userId,
+            ...extraPayload
+        },
+        process.env.JWT_SECRET,
+        {
+            expiresIn: process.env.JWT_EXPIRE || '7d'
+        }
+    )
 }
 
 const generateRefreshToken = async (userId) => {
@@ -28,7 +35,6 @@ const generateRefreshToken = async (userId) => {
 
     return token
 }
-
 
 const setTokenCookies = (res, token, refreshToken) => {
     const cookieOptions = {
@@ -482,7 +488,7 @@ const googleLoginController = (req, res) => {
         maxAge: 5 * 60 * 1000,
     })
 
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?state=${state}&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=profile email`
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?state=${state}&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=profile email&prompt=select_account`
     res.redirect(url)
 }
 
@@ -553,12 +559,30 @@ const googleCallbackController = async (req, res) => {
                 await user.save()
 
                 await UserStats.initializeUserStats(user._id)
+                setImmediate(async () => {
+                    try {
+                        const emailResult = await sendEmail(user.email, 'welcome', user.username)
+                        if (!emailResult.success) {
+                            console.error('Failed to send Welcome email:', emailResult.error)
+                        }
+                    } catch (err) {
+                        console.error('Async Welcome email error:', err)
+                    }
+                })
                 await sendEmail(user.email, 'welcome', user.username)
             }
         }
 
+        user = await User.findOne({ googleId: googleUser.id })
+
         // Generate tokens
-        const token = generateToken(user._id)
+        const token = generateToken(user._id, {
+            email: user.email,
+            username: user.username,
+            fullName: user.fullName,
+            avatar: user.avatar,
+            bio: user.bio || '',
+        })
         const refreshToken = generateRefreshToken(user._id)
 
         // Set token cookies
