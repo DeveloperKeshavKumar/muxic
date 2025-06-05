@@ -18,9 +18,13 @@ export const loginSchema = z.object({
     password: z.string().min(8)
 })
 
+export const getOTPSchema = z.object({
+    userId: z.string().min(1, 'User ID is required')
+})
+
 export const verifyOTPSchema = z.object({
     userId: z.string().min(1, 'User ID is required'),
-    otp: z.string().length(6, 'OTP must be 6 digits')
+    otp: z.number().int('OTP must be an integer').min(100000, 'OTP must be 6 digits').max(999999, 'OTP must be 6 digits')
 })
 
 export const forgotPasswordSchema = z.object({

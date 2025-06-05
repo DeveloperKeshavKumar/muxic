@@ -161,7 +161,7 @@ const verifyOTPController = async (req, res, next) => {
 
         // Check if OTP exists and is valid
         if (!user.otp?.code || user.otp.code !== otp) {
-            console.log(otp, user.otp.code)
+            // console.log(otp, user.otp.code)
             return res.status(400).json({
                 success: false,
                 message: 'Invalid OTP code'
@@ -353,6 +353,101 @@ const forgotPasswordController = async (req, res, next) => {
     }
 }
 
+const getOTPController = async (req, res, next) => {
+    try {
+        const { userId } = req.validated
+
+        // Find user by ID
+        const user = await User.findById(userId).select('+otp.code +otp.expiresAt')
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            })
+        }
+
+        // Check if user is already verified
+        if (user.isVerified) {
+            return res.status(400).json({
+                success: false,
+                message: 'Account is already verified'
+            })
+        }
+
+        // Check if current OTP is still valid (within 2 minutes of expiry to prevent spam)
+        const now = new Date()
+        const twoMinutesFromNow = new Date(now.getTime() + 2 * 60 * 1000)
+
+        if (user.otp?.expiresAt && user.otp.expiresAt > twoMinutesFromNow) {
+            const timeLeft = Math.ceil((user.otp.expiresAt - now) / 1000 / 60)
+            return res.status(429).json({
+                success: false,
+                message: `Please wait ${timeLeft} more minute(s) before requesting a new OTP`
+            })
+        }
+
+        // Rate limiting: Check if user has requested OTP recently (last 1 minute)
+        const oneMinuteAgo = new Date(now.getTime() - 60 * 1000)
+        if (user.otpRequestedAt && user.otpRequestedAt > oneMinuteAgo) {
+            return res.status(429).json({
+                success: false,
+                message: 'Please wait at least 1 minute between OTP requests'
+            })
+        }
+
+        // Generate new OTP
+        const newOtp = User.generateOTP()
+        const otpExpires = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+
+        // Update user with new OTP and request timestamp
+        user.otp = {
+            code: newOtp,
+            expiresAt: otpExpires
+        }
+        user.otpRequestedAt = now
+
+        await user.save()
+
+        // Send verification email asynchronously
+        setImmediate(async () => {
+            try {
+                const emailResult = await sendEmail(user.email, 'verification', newOtp, user.username)
+                if (!emailResult.success) {
+                    console.error('Failed to send OTP email:', emailResult.error)
+                }
+            } catch (err) {
+                console.error('Async OTP email error:', err)
+            }
+        })
+
+        res.status(200).json({
+            success: true,
+            message: 'New verification code sent to your email address',
+            data: {
+                userId: user._id,
+                email: user.email,
+                otpExpiresAt: otpExpires,
+            }
+        })
+
+    } catch (error) {
+        console.error('Get OTP error:', error)
+
+        if (error.name === 'CastError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid user ID format'
+            })
+        }
+
+        res.status(500).json({
+            success: false,
+            message: 'Failed to send OTP. Please try again.'
+        })
+    }
+}
+
 const resetPasswordController = async (req, res, next) => {
     try {
         const { token, password } = req.validated
@@ -397,6 +492,50 @@ const resetPasswordController = async (req, res, next) => {
     }
 }
 
+const getUserDetailsController = async (req, res, next) => {
+    try {
+        const { userId } = req.query;
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'User ID is required'
+            });
+        }
+
+        // Find user and stats in parallel
+        const [user, userStats] = await Promise.all([
+            User.findById(userId).select('+otp.expiresAt'),
+            UserStats.findOne({ userId })
+        ]);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Combine the data
+        const responseData = {
+            user: user.toObject(),
+            stats: userStats ? userStats.toObject() : null
+        };
+
+        res.status(200).json({
+            success: true,
+            data: responseData
+        });
+
+    } catch (error) {
+        console.error('Error fetching user details:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+}
+
 const refreshTokenController = async (req, res, next) => {
     const incomingToken = req.cookies.refreshToken
 
@@ -433,8 +572,14 @@ const refreshTokenController = async (req, res, next) => {
 const logoutController = async (req, res) => {
     const token = req.cookies.refreshToken
 
-    if (token) {
-        await RefreshToken.deleteOne({ token }).catch(console.error)
+    if (typeof token === 'string' && token.trim() !== '') {
+        try {
+            await RefreshToken.deleteOne({ token });
+        } catch (error) {
+            console.error('Error deleting refresh token:', error);
+        }
+    } else {
+        console.warn('Invalid or missing refresh token in cookies:', token);
     }
 
     res.clearCookie('token')
@@ -639,5 +784,7 @@ export {
     logoutController,
     deleteAccountController,
     googleLoginController,
-    googleCallbackController
+    googleCallbackController,
+    getOTPController,
+    getUserDetailsController
 }
