@@ -287,6 +287,7 @@ const loginController = async (req, res, next) => {
                     fullName: user.fullName,
                     avatar: user.avatar,
                     bio: user.bio,
+                    verified: user.isVerified,
                     privacy: user.privacy,
                     lastLogin: user.lastLogin
                 },
@@ -581,6 +582,7 @@ const googleCallbackController = async (req, res) => {
             username: user.username,
             fullName: user.fullName,
             avatar: user.avatar,
+            verified: user.isVerified,
             bio: user.bio || '',
         })
         const refreshToken = generateRefreshToken(user._id)
