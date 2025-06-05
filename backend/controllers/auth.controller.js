@@ -47,7 +47,7 @@ const setTokenCookies = (res, token, refreshToken) => {
 
 const registerController = async (req, res, next) => {
     try {
-        const { email, password, username, fullName } = req.validate
+        const { email, password, username, fullName } = req.validated
 
         // Check if user already exists
         const existingUser = await User.findOne({
@@ -133,7 +133,7 @@ const registerController = async (req, res, next) => {
 
 const verifyOTPController = async (req, res, next) => {
     try {
-        const { userId, otp } = req.validate
+        const { userId, otp } = req.validated
 
         // Find user with OTP
         const user = await User.findById(userId).select('+otp.code +otp.expiresAt')
@@ -221,7 +221,7 @@ const verifyOTPController = async (req, res, next) => {
 
 const loginController = async (req, res, next) => {
     try {
-        const { identifier, password } = req.validate
+        const { identifier, password } = req.validated
 
         // Find user by email or username
         const user = await User.findByCredentials(identifier)
@@ -256,36 +256,6 @@ const loginController = async (req, res, next) => {
             return res.status(403).json({
                 success: false,
                 message: 'Account deactivated. Please contact support.'
-            })
-        }
-
-        // Check if email is verified
-        if (!user.isVerified) {
-            // Generate new OTP
-            const otp = User.generateOTP()
-            const otpExpires = new Date(Date.now() + 10 * 60 * 1000)
-
-            user.otp = {
-                code: otp,
-                expiresAt: otpExpires
-            }
-            await user.save()
-
-            // Send verification email
-            setImmediate(async () => {
-                try {
-                    await sendEmail(user.email, 'verification', otp, user.username)
-                } catch (err) {
-                    console.error('Async resend verification email error:', err)
-                }
-            })
-
-
-            return res.status(403).json({
-                success: false,
-                message: 'Please verify your email first. A new verification code has been sent.',
-                requiresVerification: true,
-                userId: user._id
             })
         }
 
@@ -330,7 +300,7 @@ const loginController = async (req, res, next) => {
 
 const forgotPasswordController = async (req, res, next) => {
     try {
-        const { email } = req.validate
+        const { email } = req.validated
 
         const user = await User.findOne({ email: email.toLowerCase() })
 
@@ -378,7 +348,7 @@ const forgotPasswordController = async (req, res, next) => {
 
 const resetPasswordController = async (req, res, next) => {
     try {
-        const { token, password } = req.validate
+        const { token, password } = req.validated
 
         if (password.length < 8) {
             return res.status(400).json({
