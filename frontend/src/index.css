@@ -1,4 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-montserrat: "Montserrat", sans-serif; 
+}
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 

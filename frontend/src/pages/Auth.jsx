@@ -1,8 +1,14 @@
-import React from 'react'
+import Form from '../components/auth/Form'
+import VerifyOtp from '../components/auth/VerifyOtp'
+import PasswordActions from '../components/auth/PasswordActions'
 
-const Auth = () => {
+const Auth = ({ type }) => {
   return (
-    <div>Auth</div>
+    <>
+      {(type === 'login' || type === 'register') && <Form type={type} />}
+      {(type === 'verify') && <VerifyOtp />}
+      {(type.includes('password')) && <PasswordActions type={type} />}
+    </>
   )
 }
 
