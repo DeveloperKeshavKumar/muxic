@@ -22,6 +22,7 @@ const AuthSuccess = () => {
           username: decoded.username,
           fullName: decoded.fullName,
           avatar: decoded.avatar,
+          verified: decoded.verified || false,
           bio: decoded.bio || ''
         }))
 

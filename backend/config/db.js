@@ -2,7 +2,8 @@ import mongoose from "mongoose"
 
 export const databaseConnector = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI, {
+        const MONGO_URI = process.env.NODE_ENV === 'development' ? process.env.MONGO_URI : process.env.MONGO_URI_PROD
+        await mongoose.connect(MONGO_URI, {
             serverSelectionTimeoutMS: 5000,
             socketTimeoutMS: 45000,
         })

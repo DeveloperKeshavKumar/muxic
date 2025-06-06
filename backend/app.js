@@ -13,7 +13,7 @@ const startServer = async () => {
     console.log("Database connection established:", db.name)
 
     app.use(cors({
-      origin: process.env.CLIENT_URL || process.env.DEV_URL,
+      origin: process.env.NODE_ENV === 'development' ? process.env.DEV_URL : process.env.CLIENT_URL,
       methods: ['GET', 'POST', 'PUT', 'DELETE'],
       credentials: true,
       allowedHeaders: ['Content-Type', 'Authorization'],

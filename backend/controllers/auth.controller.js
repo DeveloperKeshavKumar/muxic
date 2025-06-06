@@ -4,9 +4,10 @@ import axios from 'axios'
 import { RefreshToken, User, UserStats } from '../models/index.js'
 import { sendEmail } from '../config/index.js'
 
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID
-const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
-const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI
+const CLIENT_ID = process.env.NODE_ENV === 'development' ? process.env.GOOGLE_CLIENT_ID : process.env.GOOGLE_CLIENT_ID_PROD
+const CLIENT_SECRET = process.env.NODE_ENV === 'development' ? process.env.GOOGLE_CLIENT_SECRET : process.env.GOOGLE_CLIENT_SECRET_PROD
+const REDIRECT_URI = process.env.NODE_ENV === 'development' ? process.env.GOOGLE_REDIRECT_URI : process.env.GOOGLE_REDIRECT_URI_PROD
+const CLIENT_URL = process.env.NODE_ENV === 'development' ? process.env.DEV_URL : process.env.CLIENT_URL
 
 const generateToken = (userId, extraPayload = {}) => {
     return jwt.sign(
@@ -644,7 +645,7 @@ const googleCallbackController = async (req, res) => {
 
     if (!state || state !== storedState) {
         console.warn('Invalid or missing OAuth state');
-        return res.redirect(`${process.env.CLIENT_URL}/auth/error?message=Invalid+OAuth+state`);
+        return res.redirect(`${CLIENT_URL}/auth/error?message=Invalid+OAuth+state`);
     }
 
     res.clearCookie('oauth_state');
@@ -735,12 +736,12 @@ const googleCallbackController = async (req, res) => {
         // Set token cookies
         setTokenCookies(res, token, refreshToken)
 
-        const redirectUrl = `${process.env.CLIENT_URL}/auth/success?token=${token}`
+        const redirectUrl = `${CLIENT_URL}/auth/success?token=${token}`
         res.redirect(redirectUrl)
 
     } catch (error) {
         console.error('Google callback error:', error.response?.data || error.message)
-        const errorUrl = `${process.env.CLIENT_URL}/auth/error?message=Authentication failed`
+        const errorUrl = `${CLIENT_URL}/auth/error?message=Authentication failed`
         res.redirect(errorUrl)
     }
 }

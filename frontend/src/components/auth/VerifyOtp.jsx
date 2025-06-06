@@ -15,16 +15,14 @@ const VerifyOtp = () => {
 
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const userId = searchParams.get('userId')
+  let userId = searchParams.get('userId')
 
   // Fetch user data on component mount (without triggering OTP resend)
   useEffect(() => {
     // In your fetchUserData function inside useEffect
     const fetchUserData = async () => {
       if (!userId) {
-        toast.error('User ID not found. Please try again.')
-        navigate('/register')
-        return
+        userId = JSON.parse(localStorage.getItem('user')).id
       }
 
       try {
