@@ -10,6 +10,7 @@ const VerifyOtp = () => {
   const [timeLeft, setTimeLeft] = useState(600) // 10 minutes to match backend
   const [canResend, setCanResend] = useState(false)
   const [userEmail, setUserEmail] = useState('')
+  const [verified, setVerified] = useState(false)
   const [isLoadingUser, setIsLoadingUser] = useState(true)
   const inputRefs = useRef([])
 
@@ -22,7 +23,9 @@ const VerifyOtp = () => {
     // In your fetchUserData function inside useEffect
     const fetchUserData = async () => {
       if (!userId) {
-        userId = JSON.parse(localStorage.getItem('user')).id
+        toast.error('User ID not found. Please try again.')
+        navigate('/register')
+        return
       }
 
       try {
@@ -32,6 +35,7 @@ const VerifyOtp = () => {
         })
 
         if (response.data.success) {
+          setVerified(response.data.data.user.isVerified)
           setUserEmail(response.data.data.email)
           if (response.data.data.otpExpiresAt) {
             const expiresAt = new Date(response.data.data.otpExpiresAt)
@@ -61,6 +65,13 @@ const VerifyOtp = () => {
 
     fetchUserData()
   }, [userId, navigate])
+
+  useEffect(() => {
+    if (verified) {
+      toast.error('Your account is already verified. Redirecting to lobby...')
+      navigate('/lobby', { replace: true })
+    }
+  }, [verified, navigate])
 
   // Timer countdown
   useEffect(() => {
@@ -133,7 +144,7 @@ const VerifyOtp = () => {
     }
 
     if (!userId) {
-      toast.error('User ID not found. Please try again.')
+      toast.error('User ID not found. Please try again.' + userId)
       return
     }
 
