@@ -17,7 +17,13 @@ const startServer = async () => {
       methods: ['GET', 'POST', 'PUT', 'DELETE'],
       credentials: true,
       allowedHeaders: ['Content-Type', 'Authorization'],
+      exposedHeaders: ['set-cookie']
     }))
+
+    app.use((req, res, next) => {
+      res.header('Access-Control-Allow-Credentials', true)
+      next()
+    })
     app.use(express.json())
     app.use(express.urlencoded({ extended: true }))
     app.use(cookieParser())

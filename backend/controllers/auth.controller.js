@@ -38,11 +38,15 @@ const generateRefreshToken = async (userId) => {
 }
 
 const setTokenCookies = (res, token, refreshToken) => {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const sameSite = isProduction ? 'none' : 'lax';
+
     const cookieOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        secure: isProduction,
+        sameSite,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/',
     }
 
     res.cookie('token', token, cookieOptions)
@@ -194,7 +198,7 @@ const verifyOTPController = async (req, res, next) => {
 
         // Generate tokens
         const token = generateToken(user._id)
-        const refreshToken = generateRefreshToken(user._id)
+        const refreshToken = await generateRefreshToken(user._id)
 
         // Set cookies
         setTokenCookies(res, token, refreshToken)
@@ -272,7 +276,7 @@ const loginController = async (req, res, next) => {
 
         // Generate tokens
         const token = generateToken(user._id)
-        const refreshToken = generateRefreshToken(user._id)
+        const refreshToken = await generateRefreshToken(user._id)
 
         // Set cookies
         setTokenCookies(res, token, refreshToken)
@@ -731,7 +735,7 @@ const googleCallbackController = async (req, res) => {
             verified: user.isVerified,
             bio: user.bio || '',
         })
-        const refreshToken = generateRefreshToken(user._id)
+        const refreshToken = await generateRefreshToken(user._id)
 
         // Set token cookies
         setTokenCookies(res, token, refreshToken)
