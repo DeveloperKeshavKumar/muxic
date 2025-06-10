@@ -1,8 +1,9 @@
 import { useRoutes } from 'react-router'
-import Home from './pages/Home';
-import Auth from './pages/Auth';
-import Lobby from './pages/Lobby';
-import { OAuthSuccess, OAuthError } from './components/auth/OAuth';
+import Home from './pages/Home'
+import Auth from './pages/Auth'
+import Lobby from './pages/Lobby'
+import { OAuthSuccess, OAuthError } from './components/auth/OAuth'
+import ProtectedRoute from './components/ProtectedRoute'
 
 const routes = [
   {
@@ -11,7 +12,7 @@ const routes = [
   },
   {
     path: '/lobby',
-    element: <Lobby />,
+    element: <ProtectedRoute><Lobby /></ProtectedRoute>,
   },
   {
     path: '/login',
@@ -45,8 +46,8 @@ const routes = [
     path: '*',
     element: <>Not found</>,
   },
-];
+]
 
 export default function RoutesWrapper() {
-  return useRoutes(routes);
+  return useRoutes(routes)
 }

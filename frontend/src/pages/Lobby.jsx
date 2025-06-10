@@ -37,7 +37,10 @@ const Lobby = () => {
 
       // Only clear local storage AFTER successful logout
       if (response.data.success) {
-        localStorage.clear()
+        localStorage.removeItem('auth')
+        localStorage.removeItem('user')
+        localStorage.removeItem('token')
+        localStorage.removeItem('refreshToken')
         setIsAuth({ authenticated: false, user: null })
         toast.success('Logged out successfully')
         navigate('/login')
