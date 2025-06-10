@@ -21,6 +21,7 @@ export const OAuthSuccess = () => {
             // You might want to decode the token to get user info
             try {
                 const tokenPayload = JSON.parse(atob(token.split('.')[1]))
+                localStorage.setItem('auth', true)
                 localStorage.setItem('user', JSON.stringify({
                     email: tokenPayload.email,
                     username: tokenPayload.username,
