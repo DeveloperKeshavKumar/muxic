@@ -2,7 +2,7 @@ import { useRoutes } from 'react-router'
 import Home from './pages/Home';
 import Auth from './pages/Auth';
 import Lobby from './pages/Lobby';
-import AuthSuccess from './components/auth/AuthSuccess';
+import { OAuthSuccess, OAuthError } from './components/auth/OAuth';
 
 const routes = [
   {
@@ -35,7 +35,11 @@ const routes = [
   },
   {
     path: '/auth/success',
-    element: <AuthSuccess />,
+    element: <OAuthSuccess />,
+  },
+  {
+    path: '/auth/error',
+    element: <OAuthError />,
   },
   {
     path: '*',

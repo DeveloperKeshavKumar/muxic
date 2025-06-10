@@ -1,44 +1,41 @@
 import { useState } from "react"
+import { useNavigate } from 'react-router'
+import { toast } from "react-toastify"
 import axios from "axios"
 
 const ForgotPassword = ({ navigate }) => {
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [message, setMessage] = useState(null)
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!email) {
-      setMessage({ type: 'error', text: 'Please enter your email address' });
-      setTimeout(() => setMessage(null), 15000);
-      return;
-    }
-
-    setIsSubmitting(true);
+    e.preventDefault()
+    setIsSubmitting(true)
 
     try {
       const response = await axios.put(
         `${import.meta.env.VITE_SERVER_URL}/auth/forgot-password`,
-        { email }
-      );
+        { email },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 10000
+        }
+      )
 
-      setMessage({
-        type: 'success',
-        text: response.data.message || 'Password reset link sent to your email'
-      });
-      setTimeout(() => setMessage(null), 5000); // Auto-hide after 5s
+      toast.success(response.data?.message || 'Reset link sent to your email!')
+
+      setTimeout(() => {
+        navigate('/reset-password')
+      }, 100);
     } catch (error) {
-      console.error(error);
-      const errorMessage = error.response?.data?.message ||
-        'An error occurred while sending the reset link. Please try again.';
-
-      setMessage({ type: 'error', text: errorMessage });
-      setTimeout(() => setMessage(null), 5000); // Auto-hide after 5s
+      console.log(error)
+      const message = error?.response?.data?.message || 'Something went wrong. Please try again.'
+      toast.error(message)
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   return (
     <div className="w-full max-w-md">
@@ -46,15 +43,7 @@ const ForgotPassword = ({ navigate }) => {
         Reset Your <span className="text-emerald-600 dark:text-emerald-400">Password</span>
       </h2>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {message && (
-          <div className={`p-4 rounded-md ${message.type === 'success'
-            ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200'
-            : 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200'}`}>
-            {message.text}
-          </div>
-        )}
-
+      <form onSubmit={(e) => handleSubmit(e)} className="space-y-6">
         <div>
           <label htmlFor="email" className="block text-sm font-medium font-montserrat text-gray-700 dark:text-gray-300 mb-2">
             Email Address
@@ -84,11 +73,10 @@ const ForgotPassword = ({ navigate }) => {
       <div className="mt-8 text-center">
         <p className="text-sm font-montserrat text-gray-600 dark:text-gray-400">
           Remember your password?{' '}
-          <button
-            onClick={() => navigate('/login')}
+          <button onClick={() => navigate('/login')}
             className="font-medium hover:underline text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
           >
-            Sign In
+            Log In
           </button>
         </p>
       </div>

@@ -3,44 +3,48 @@ import { PiSealWarningFill } from "react-icons/pi"
 import { useNavigate } from 'react-router'
 import axios from 'axios'
 import { toast } from 'react-toastify'
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
+import { AuthContext } from '../context/AuthContext'
 
 const Lobby = () => {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  const { isAuth, setIsAuth } = useContext(AuthContext)
+
   useEffect(() => {
-    const storedUser = localStorage.getItem('user')
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
+    const savedUser = JSON.parse(localStorage.getItem('user'))
+    if (isAuth.authenticated && isAuth.user) {
+      setUser(isAuth.user)
+    } else {
+      setUser(savedUser)
     }
-  }, [])
+  }, [isAuth])
 
   const handleLogout = async () => {
     try {
       const response = await axios.post(
         `${import.meta.env.VITE_SERVER_URL}/auth/logout`,
-        {},
-        { withCredentials: true }
+        {}, // optional request body, if any
+        {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
       )
 
+      // Only clear local storage AFTER successful logout
       if (response.data.success) {
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
+        localStorage.clear()
+        setIsAuth({ authenticated: false, user: null })
         toast.success('Logged out successfully')
         navigate('/login')
-      } else {
-        throw new Error(response.data.message || 'Logout failed')
       }
     } catch (error) {
-      console.log('Logout error:', error)
-      toast.error(error.response?.data?.message || 'Failed to logout. Please try again.')
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
+      console.error('Logout error:', error)
+      toast.error(error.response?.data?.error || 'Failed to logout. Please try again.')
       navigate('/login')
     }
   }

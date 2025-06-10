@@ -1,100 +1,138 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { FiEyeOff, FiEye } from "react-icons/fi"
 import { useSearchParams } from "react-router"
 import axios from "axios"
+import { toast } from "react-toastify"
 
 const ResetPassword = ({ navigate }) => {
   const [searchParams] = useSearchParams()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [message, setMessage] = useState(null)
-  const [tokenValid, setTokenValid] = useState(true)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false) // Fixed: was initialized as true
+  const [errors, setErrors] = useState({})
 
   const token = searchParams.get('token')
 
-  useEffect(() => {
-    if (!token) {
-      setTokenValid(false)
-      setMessage({
-        type: 'error',
-        text: 'Invalid reset token. Please request a new password reset link.',
-      })
+  // Validate passwords
+  const validatePasswords = () => {
+    const newErrors = {}
+
+    if (!password) {
+      newErrors.password = 'Password is required'
+    } else if (password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters long'
     }
-  }, [token])
+
+    if (!confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password'
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    // Clear previous messages
-    setMessage(null)
-
-    // Validation
-    if (password.length < 8) {
-      setMessage({
-        type: 'error',
-        text: 'Password must be at least 8 characters long',
-      })
-      return
-    }
-
-    if (password !== confirmPassword) {
-      setMessage({
-        type: 'error',
-        text: 'Passwords do not match',
-      })
+    // Validate before submitting
+    if (!validatePasswords()) {
       return
     }
 
     setIsSubmitting(true)
+    setErrors({})
 
     try {
       const response = await axios.put(
         `${import.meta.env.VITE_SERVER_URL}/auth/reset-password`,
-        { token, password }
+        {
+          token, // Include token in request body as expected by backend
+          password
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 10000
+        }
       )
 
-      setMessage({
-        type: 'success',
-        text: response.data.message || 'Password reset successful. You can now login with your new password.',
-      })
+      // Check for success response
+      if (response.data?.success) {
+        toast.success(response.data?.message || 'Password reset successful!')
 
-      // Auto-navigate to login after 3 seconds
-      setTimeout(() => navigate('/login'), 3000)
-    } catch (error) {
-      console.error('Reset password error:', error)
+        // Clear form
+        setPassword('')
+        setConfirmPassword('')
 
-      let errorMessage = 'Network error. Please check your connection and try again.'
-
-      if (error.response) {
-        errorMessage = error.response.data.message || 'Password reset failed. Please try again.'
-
-        // Handle invalid/expired token cases
-        if (error.response.status === 400 &&
-          (errorMessage.includes('expired') || errorMessage.includes('invalid'))) {
-          setTokenValid(false)
-        }
+        // Navigate to login after short delay
+        setTimeout(() => {
+          navigate('/login')
+        }, 1500)
+      } else {
+        toast.error(response.data?.message || 'Password reset failed')
       }
 
-      setMessage({
-        type: 'error',
-        text: errorMessage,
-      })
+    } catch (error) {
+      console.error('Reset password error:', error)
+      const message = error?.response?.data?.message || 'Something went wrong. Please try again.'
+      toast.error(message)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  if (!tokenValid) {
+  // Real-time password validation
+  const handlePasswordChange = (e) => {
+    const value = e.target.value
+    setPassword(value)
+
+    // Clear password error when user starts typing
+    if (errors.password) {
+      setErrors(prev => ({ ...prev, password: '' }))
+    }
+
+    // Check confirm password match if it exists
+    if (confirmPassword && value !== confirmPassword) {
+      setErrors(prev => ({ ...prev, confirmPassword: 'Passwords do not match' }))
+    } else if (confirmPassword && value === confirmPassword) {
+      setErrors(prev => ({ ...prev, confirmPassword: '' }))
+    }
+  }
+
+  const handleConfirmPasswordChange = (e) => {
+    const value = e.target.value
+    setConfirmPassword(value)
+
+    // Clear confirm password error when user starts typing
+    if (errors.confirmPassword) {
+      setErrors(prev => ({ ...prev, confirmPassword: '' }))
+    }
+
+    // Check if passwords match
+    if (password && value !== password) {
+      setErrors(prev => ({ ...prev, confirmPassword: 'Passwords do not match' }))
+    } else if (password && value === password) {
+      setErrors(prev => ({ ...prev, confirmPassword: '' }))
+    }
+  }
+
+  // If no token, show error state
+  if (!token) {
     return (
       <div className="w-full max-w-md">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-8 text-gray-900 dark:text-white">
           Reset <span className="text-emerald-600 dark:text-emerald-400">Password</span>
         </h2>
 
-        <div className="p-4 rounded-md bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200 mb-6">
-          {message?.text}
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-6">
+          <p className="text-red-700 dark:text-red-400 text-sm font-medium">
+            Invalid or missing reset token. Please request a new reset link.
+          </p>
         </div>
 
         <button
@@ -111,7 +149,7 @@ const ResetPassword = ({ navigate }) => {
               onClick={() => navigate('/login')}
               className="font-semibold hover:underline text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
             >
-              Sign In
+              Log In
             </button>
           </p>
         </div>
@@ -125,14 +163,7 @@ const ResetPassword = ({ navigate }) => {
         Reset Your <span className="text-emerald-600 dark:text-emerald-400">Password</span>
       </h2>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {message && (
-          <div className={`p-4 rounded-md ${message.type === 'success'
-            ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200'
-            : 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-200'}`}>
-            {message.text}
-          </div>
-        )}
+      <form onSubmit={handleSubmit} className="space-y-6"> {/* Fixed: was using onClick instead of onSubmit */}
 
         <div>
           <label htmlFor="password" className="block text-sm font-semibold font-montserrat text-gray-700 dark:text-gray-300 mb-2">
@@ -143,25 +174,35 @@ const ResetPassword = ({ navigate }) => {
               type={showPassword ? "text" : "password"}
               id="password"
               name="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 pr-12 rounded-md border border-white/20 dark:border-gray-600/50 bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/50 dark:text-white transition-all shadow-sm"
+              className={`w-full px-4 py-3 pr-12 rounded-md border backdrop-blur-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/50 dark:text-white transition-all shadow-sm ${errors.password
+                  ? 'border-red-300 dark:border-red-600 bg-red-50/50 dark:bg-red-900/20'
+                  : 'border-white/20 dark:border-gray-600/50 bg-white/50 dark:bg-gray-700/50'
+                }`}
               placeholder="Enter your new password"
               required
+              value={password}
+              onChange={handlePasswordChange}
               disabled={isSubmitting}
             />
             <button
-              type="button"
               onClick={() => setShowPassword(!showPassword)}
+              type="button"
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 focus:outline-none"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
             </button>
           </div>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Must be at least 8 characters
-          </p>
+          {errors.password && (
+            <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+              {errors.password}
+            </p>
+          )}
+          {!errors.password && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Must be at least 8 characters
+            </p>
+          )}
         </div>
 
         <div>
@@ -170,33 +211,41 @@ const ResetPassword = ({ navigate }) => {
           </label>
           <div className="relative">
             <input
-              type={showPassword ? "text" : "password"}
+              type={showConfirmPassword ? "text" : "password"}
               id="confirmPassword"
               name="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-3 pr-12 rounded-md border border-white/20 dark:border-gray-600/50 bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/50 dark:text-white transition-all shadow-sm"
+              className={`w-full px-4 py-3 pr-12 rounded-md border backdrop-blur-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500/50 dark:text-white transition-all shadow-sm ${errors.confirmPassword
+                  ? 'border-red-300 dark:border-red-600 bg-red-50/50 dark:bg-red-900/20'
+                  : 'border-white/20 dark:border-gray-600/50 bg-white/50 dark:bg-gray-700/50'
+                }`}
               placeholder="Confirm your new password"
               required
+              value={confirmPassword}
+              onChange={handleConfirmPasswordChange}
               disabled={isSubmitting}
             />
             <button
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 focus:outline-none"
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-label={showConfirmPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+              {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
             </button>
           </div>
+          {errors.confirmPassword && (
+            <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+              {errors.confirmPassword}
+            </p>
+          )}
         </div>
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !password || !confirmPassword || Object.keys(errors).some(key => errors[key])}
           className="w-full py-4 rounded-md font-mono bg-emerald-600 dark:bg-emerald-500 text-white hover:bg-emerald-700 dark:hover:bg-emerald-600 transition-all text-lg font-semibold shadow-lg shadow-emerald-500/20 dark:shadow-emerald-500/10 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          {isSubmitting ? 'Resetting...' : 'Reset Password'}
+          {isSubmitting ? 'Resetting Password...' : 'Reset Password'}
         </button>
       </form>
 

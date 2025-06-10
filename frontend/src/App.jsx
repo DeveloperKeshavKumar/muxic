@@ -41,7 +41,9 @@ function App() {
       <div className="fixed inset-0 -z-10 h-full w-full bg-white dark:bg-[#222] bg-[linear-gradient(to_right,#f0f0f0_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#333_1px,transparent_1px),linear-gradient(to_bottom,#333_1px,transparent_1px)] bg-[size:6rem_4rem]">
         <div className="absolute bottom-0 left-0 right-0 top-0 bg-[radial-gradient(circle_500px_at_50%_200px,#a5d8a7,transparent)] dark:bg-[radial-gradient(circle_500px_at_50%_200px,#2a5c2e,transparent)]"></div>
       </div>
-      <RoutesWrapper />
+      {/* <AuthProvider> */}
+        <RoutesWrapper />
+      {/* </AuthProvider> */}
     </div>
   )
 }

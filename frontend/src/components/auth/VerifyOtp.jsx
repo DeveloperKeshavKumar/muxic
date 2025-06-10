@@ -1,24 +1,26 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useContext } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'react-toastify'
 import axios from 'axios'
+import { AuthContext } from '../../context/AuthContext'
 
 const VerifyOtp = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [isLoading, setIsLoading] = useState(false)
   const [isResending, setIsResending] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(600) // 10 minutes to match backend
+  const [timeLeft, setTimeLeft] = useState(600)
   const [canResend, setCanResend] = useState(false)
   const [userEmail, setUserEmail] = useState('')
   const [verified, setVerified] = useState(false)
   const [isLoadingUser, setIsLoadingUser] = useState(true)
   const inputRefs = useRef([])
 
+  const { setIsAuth } = useContext(AuthContext)
+
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   let userId = searchParams.get('userId')
 
-  // Fetch user data on component mount (without triggering OTP resend)
   useEffect(() => {
     // In your fetchUserData function inside useEffect
     const fetchUserData = async () => {
@@ -36,7 +38,7 @@ const VerifyOtp = () => {
 
         if (response.data.success) {
           setVerified(response.data.data.user.isVerified)
-          setUserEmail(response.data.data.email)
+          setUserEmail(response.data.data.user.email)
           if (response.data.data.otpExpiresAt) {
             const expiresAt = new Date(response.data.data.otpExpiresAt)
             const now = new Date()
@@ -71,7 +73,7 @@ const VerifyOtp = () => {
       toast.error('Your account is already verified. Redirecting to lobby...')
       navigate('/lobby', { replace: true })
     }
-  }, [verified, navigate])
+  }, [verified])
 
   // Timer countdown
   useEffect(() => {
@@ -171,6 +173,8 @@ const VerifyOtp = () => {
         if (response.data.data?.user) {
           localStorage.setItem('user', JSON.stringify(response.data.data.user))
         }
+
+        setIsAuth(response.data.data.user)
 
         // Redirect to lobby/dashboard
         navigate('/lobby', { replace: true })
