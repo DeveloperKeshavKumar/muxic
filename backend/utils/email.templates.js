@@ -1,5 +1,5 @@
 export const emailTemplates = {
-  verification: (otp, username) => ({
+  verification: (otp, username, userId) => ({
     subject: 'Verify Your Account - OTP Code',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
@@ -12,6 +12,11 @@ export const emailTemplates = {
             <div style="display: inline-block; background-color: #007bff; color: white; padding: 15px 30px; font-size: 24px; font-weight: bold; border-radius: 5px; letter-spacing: 3px;">
               ${otp}
             </div>
+          </div>
+          <div style="text-align: center; margin-bottom: 30px;">
+            <a href="${process.env.CLIENT_URL}/verify?userId=${userId}" style="display: inline-block; background-color: #28a745; color: white; padding: 12px 25px; font-size: 16px; font-weight: bold; border-radius: 5px; text-decoration: none;">
+              Verify Now
+            </a>
           </div>
           <p style="color: #666; font-size: 14px; text-align: center;">
             This code will expire in 10 minutes. If you didn't request this, please ignore this email.
@@ -81,7 +86,7 @@ export const emailTemplates = {
             <li>Discover new music</li>
           </ul>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.CLIENT_URL}/dashboard" 
+            <a href="${process.env.CLIENT_URL}/lobby" 
                style="display: inline-block; background-color: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Get Started
             </a>

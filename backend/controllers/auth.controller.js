@@ -101,7 +101,7 @@ const registerController = async (req, res, next) => {
         // Send verification email
         setImmediate(async () => {
             try {
-                const emailResult = await sendEmail(user.email, 'verification', otp, user.username)
+                const emailResult = await sendEmail(user.email, 'verification', otp, user.username, user._id)
                 if (!emailResult.success) {
                     console.error('Email send failed:', emailResult.error)
                 }
@@ -417,7 +417,7 @@ const getOTPController = async (req, res, next) => {
         // Send verification email asynchronously
         setImmediate(async () => {
             try {
-                const emailResult = await sendEmail(user.email, 'verification', newOtp, user.username)
+                const emailResult = await sendEmail(user.email, 'verification', newOtp, user.username, user._id)
                 if (!emailResult.success) {
                     console.error('Failed to send OTP email:', emailResult.error)
                 }
